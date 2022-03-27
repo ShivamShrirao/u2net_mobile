@@ -104,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements Runnable {
         });
 
         try {
-            mModule = LiteModuleLoader.load(MainActivity.assetFilePath(getApplicationContext(), "u2net_quantized.ptl"));
+            mModule = LiteModuleLoader.load(MainActivity.assetFilePath(getApplicationContext(), "u2net_exp.ptl"));
         } catch (IOException e) {
             Log.e("ImageSegmentation", "Error reading assets", e);
             finish();
@@ -119,18 +119,24 @@ public class MainActivity extends AppCompatActivity implements Runnable {
 //        final float[] inputs = inputTensor.getDataAsFloatArray();
 
         final long startTime = SystemClock.elapsedRealtime();
-        Map<String, IValue> outTensors = mModule.forward(IValue.from(inputTensor)).toDictStringKey();
+        Tensor outputTensor = mModule.forward(IValue.from(inputTensor)).toTensor();
         final long inferenceTime = SystemClock.elapsedRealtime() - startTime;
         Log.d("ImageSegmentation",  "inference time (ms): " + inferenceTime);
 
-        final Tensor outputTensor = outTensors.get("out").toTensor();
         final float[] scores = outputTensor.getDataAsFloatArray();
         int width = mBitmap.getWidth();
         int height = mBitmap.getHeight();
         int[] intValues = new int[width * height];
         for (int j = 0; j < height; j++) {
             for (int k = 0; k < width; k++) {
-                intValues[j * width + k] = 0xFF000000 + Math.round(scores[j * width + k]);
+                float val = scores[j * width + k];
+                if (val > 127.5){
+                    intValues[j * width + k] = 0xFFFFFFFF; //0xFF0000*val/255) + Math.round(0xFF00*val/255) + Math.round(0xFF*val/255);
+                }
+                else {
+                    intValues[j * width + k] = 0xFF000000;
+                }
+
             }
         }
 
